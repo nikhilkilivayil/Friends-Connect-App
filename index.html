@@ -1570,8 +1570,9 @@
           if (badge) badge.textContent = 'Live Cloud Signal Connected';
           mqttClient.subscribe(MQTT_TOPIC_PREFIX + '/ringing/#', { qos: 1 });
           mqttClient.subscribe(MQTT_TOPIC_PREFIX + '/signal', { qos: 1 });
-          mqttClient.subscribe(MQTT_TOPIC_PREFIX + '/frames', { qos: 0 });
-          mqttClient.subscribe(MQTT_TOPIC_PREFIX + '/audio', { qos: 0 });
+          // Security: camera frames and microphone audio are NOT sent over the public
+          // MQTT broker. Anyone can subscribe to a public topic. Cross-device media
+          // goes through the PeerJS/WebRTC peer connection only.
         });
 
         mqttClient.on('message', function (topic, payloadBuf) {
@@ -1793,9 +1794,8 @@
           try {
             localStorage.setItem(AUDIO_BRIDGE_STORAGE_KEY, JSON.stringify(audioPacket));
           } catch (e) {}
-          if (mqttClient && mqttClient.connected) {
-            mqttClient.publish(MQTT_TOPIC_PREFIX + '/audio', JSON.stringify(audioPacket), { qos: 0 });
-          }
+          // Security: raw microphone audio stays inside this browser (BroadcastChannel/localStorage).
+          // It is never published to the public MQTT broker.
         };
 
         audioMicSourceNode.connect(audioScriptProcessorNode);
@@ -1909,9 +1909,8 @@
           try {
             localStorage.setItem(FRAME_BRIDGE_STORAGE_KEY, JSON.stringify(framePacket));
           } catch (e) {}
-          if (mqttClient && mqttClient.connected) {
-            mqttClient.publish(MQTT_TOPIC_PREFIX + '/frames', JSON.stringify(framePacket), { qos: 0 });
-          }
+          // Security: camera frames (and the sender's phone number) stay inside this browser.
+          // They are never published to the public MQTT broker.
         } catch (e) {}
       }, 240);
     }
@@ -3065,11 +3064,21 @@
       showToast('Showing events: ' + city);
     }
 
+    // Security: escape user-typed text before it is placed inside HTML (prevents XSS).
+    function escapeHtml(value) {
+      return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
     function bookTicket(title, price) {
       const qr = 'FC-QR-' + Math.random().toString(36).substring(2, 10).toUpperCase();
       const div = document.createElement('div');
       div.style = 'background-color:var(--bg-subtle);border:1px solid var(--border-subtle);padding:0.75rem 1rem;border-radius:var(--radius-sm);font-size:0.8125rem;';
-      div.innerHTML = '<strong>' + title + '</strong> • Paid ₹' + price + ' • <code>QR: ' + qr + '</code>';
+      div.innerHTML = '<strong>' + escapeHtml(title) + '</strong> • Paid ₹' + escapeHtml(price) + ' • <code>QR: ' + qr + '</code>';
       document.getElementById('bookedTicketsList').prepend(div);
       showToast('Ticket booked for ' + title);
     }
@@ -3080,7 +3089,7 @@
       if (!caption) return showToast('Please enter a caption');
       const div = document.createElement('div');
       div.className = 'media-item';
-      div.innerHTML = '<div class="media-body"><span class="pill">' + (type === 'VIDEO' ? 'Video' : 'Photo') + '</span><p style="font-size:0.8125rem;margin-top:0.375rem;font-weight:500;">' + caption + '</p><small style="color:var(--text-muted);">Just now</small></div>';
+      div.innerHTML = '<div class="media-body"><span class="pill">' + (type === 'VIDEO' ? 'Video' : 'Photo') + '</span><p style="font-size:0.8125rem;margin-top:0.375rem;font-weight:500;">' + escapeHtml(caption) + '</p><small style="color:var(--text-muted);">Just now</small></div>';
       document.getElementById('celebMediaGrid').prepend(div);
       document.getElementById('celebMediaCaption').value = '';
       showToast('Published to Fan Feed');
@@ -3094,8 +3103,14 @@
       const div = document.createElement('div');
       div.className = 'card event-card';
       div.setAttribute('data-city', city);
-      const safeTitle = title.replace(/'/g, '');
-      div.innerHTML = `<div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--text-secondary);font-weight:600;margin-bottom:0.5rem;"><span>Verified Org</span><span>${city}</span></div><h3>${safeTitle}</h3><p class="sub" style="margin:0.375rem 0 1rem;">Newly published organization event.</p><div style="display:flex;justify-content:space-between;align-items:center;background-color:var(--bg-subtle);padding:0.875rem 1rem;border-radius:var(--radius-md);border:1px solid var(--border-subtle);"><div><strong style="font-size:0.875rem;">Standard Entry Pass</strong><div style="font-size:0.75rem;color:var(--text-secondary);">₹${price} • 250 seats left</div></div><button type="button" class="btn btn-primary" onclick="bookTicket('${safeTitle}', ${price})">Book Ticket (₹${price})</button></div>`;
+      const safeTitle = escapeHtml(title);
+      const safeCity = escapeHtml(city);
+      const numericPrice = Number(price) >= 0 ? Number(price) : 0;
+      div.innerHTML = `<div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--text-secondary);font-weight:600;margin-bottom:0.5rem;"><span>Verified Org</span><span>${safeCity}</span></div><h3>${safeTitle}</h3><p class="sub" style="margin:0.375rem 0 1rem;">Newly published organization event.</p><div style="display:flex;justify-content:space-between;align-items:center;background-color:var(--bg-subtle);padding:0.875rem 1rem;border-radius:var(--radius-md);border:1px solid var(--border-subtle);"><div><strong style="font-size:0.875rem;">Standard Entry Pass</strong><div style="font-size:0.75rem;color:var(--text-secondary);">₹${numericPrice} • 250 seats left</div></div><button type="button" class="btn btn-primary">Book Ticket (₹${numericPrice})</button></div>`;
+      // Security: attach the click handler in JS instead of an inline onclick built from user text.
+      div.querySelector('button').addEventListener('click', function () {
+        bookTicket(title, numericPrice);
+      });
       document.getElementById('eventsListContainer').prepend(div);
       document.getElementById('orgEventTitle').value = '';
       showToast('Published Event: ' + title);
@@ -3107,7 +3122,10 @@
       const box = document.getElementById('supportChatBox');
       const msg = document.createElement('div');
       msg.style.marginBottom = '0.625rem';
-      msg.innerHTML = '<strong>Customer Care Desk:</strong> ' + input.value;
+      const label = document.createElement('strong');
+      label.textContent = 'Customer Care Desk:';
+      msg.appendChild(label);
+      msg.appendChild(document.createTextNode(' ' + input.value));
       box.appendChild(msg);
       box.scrollTop = box.scrollHeight;
       input.value = '';
