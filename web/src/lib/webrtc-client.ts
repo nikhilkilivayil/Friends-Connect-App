@@ -29,6 +29,7 @@ export class WebRtcCallClient {
   private roomName: string = '';
   private userId: string = '';
   private callMode: WebRtcCallMode = 'RANDOM_AUDIO';
+  private readonly pendingIceCandidates: RTCIceCandidateInit[] = [];
 
   private readonly defaultIceServers: RTCIceServer[] = [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -48,8 +49,7 @@ export class WebRtcCallClient {
     this.callMode = params.callMode;
 
     const isVideoAllowed =
-      (params.callMode === 'RANDOM_VIDEO' || params.callMode === 'CELEB_VIDEO') &&
-      params.callMode !== 'SUPPORT_AUDIO';
+      params.callMode === 'RANDOM_VIDEO' || params.callMode === 'CELEB_VIDEO';
 
     // 1. Capture Local Audio / Video MediaStream via WebRTC getUserMedia
     try {
@@ -124,7 +124,7 @@ export class WebRtcCallClient {
     }
 
     // 3. Connect to Socket.io WebRTC Signaling Server
-    const url = params.signalingUrl || 'http://localhost:4000';
+    const url = params.signalingUrl || process.env.NEXT_PUBLIC_SIGNALING_URL || 'http://localhost:4000';
     this.socket = io(url, {
       transports: ['websocket'],
       reconnectionAttempts: 2,
@@ -138,6 +138,10 @@ export class WebRtcCallClient {
         displayName: params.displayName,
         callMode: this.callMode,
       });
+    });
+    this.socket.on('connect_error', (error: Error) => {
+      params.callbacks.onError(`Call signaling is unavailable: ${error.message}`);
+      params.callbacks.onConnectionStateChange('failed');
     });
 
     // When peer joins, create and send WebRTC SDP Offer
@@ -164,6 +168,7 @@ export class WebRtcCallClient {
     this.socket.on('webrtc_sdp_offer', async (payload: { sdp: RTCSessionDescriptionInit }) => {
       if (!this.peerConnection) return;
       await this.peerConnection.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+      await this.flushPendingIceCandidates();
       const answer = await this.peerConnection.createAnswer();
       await this.peerConnection.setLocalDescription(answer);
 
@@ -182,6 +187,7 @@ export class WebRtcCallClient {
     this.socket.on('webrtc_sdp_answer', async (payload: { sdp: RTCSessionDescriptionInit }) => {
       if (!this.peerConnection) return;
       await this.peerConnection.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+      await this.flushPendingIceCandidates();
     });
 
     // Add trickled remote ICE candidates
@@ -189,9 +195,20 @@ export class WebRtcCallClient {
       'webrtc_ice_candidate',
       async (payload: { candidate: RTCIceCandidateInit }) => {
         if (!this.peerConnection || !payload.candidate) return;
+        if (!this.peerConnection.remoteDescription) {
+          this.pendingIceCandidates.push(payload.candidate);
+          return;
+        }
         await this.peerConnection.addIceCandidate(new RTCIceCandidate(payload.candidate));
       },
     );
+  }
+
+  private async flushPendingIceCandidates() {
+    if (!this.peerConnection?.remoteDescription) return;
+    for (const candidate of this.pendingIceCandidates.splice(0)) {
+      await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+    }
   }
 
   toggleAudioMute(muted: boolean): void {
@@ -243,6 +260,7 @@ export class WebRtcCallClient {
     this.localStream?.getTracks().forEach((track) => track.stop());
     this.localStream = null;
     this.remoteStream = null;
+    this.pendingIceCandidates.length = 0;
 
     this.peerConnection?.close();
     this.peerConnection = null;
