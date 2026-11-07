@@ -1545,11 +1545,9 @@
     // Service endpoints. On localhost only, they can be overridden with URL
     // parameters (?mqtt=ws://...&peerHost=...&peerPort=...&peerPath=...) for local testing.
     //
-    // Calls between different networks (mobile data <-> Wi-Fi, office firewalls) need a
-    // TURN relay. TURN_ACCOUNT holds the relay login (e.g. a free ExpressTURN or Metered
-    // account). Checked on 7 Nov 2026: the no-sign-up relays (Metered Open Relay, PeerJS's
-    // TURN) no longer work, so until TURN_ACCOUNT is filled in, calls only connect when a
-    // direct path exists (same Wi-Fi, most home broadband).
+    // Calls between different networks (mobile data <-> Wi-Fi, office firewalls) and devices on
+    // a Wi-Fi that isolates them need a TURN relay. Its login comes from our backend (TURN_API_URL).
+    // Checked on 7 Nov 2026: the no-sign-up relays (Metered Open Relay, PeerJS's TURN) no longer work.
     // ?relay=1 forces every call through TURN (to test what mobile-data users get).
     const NET_CONFIG = (function () {
       const p = new URLSearchParams(window.location.search);
@@ -1578,14 +1576,35 @@
       return cfg;
     })();
 
-    const TURN_ACCOUNT = null; // { urls: ['turn:host:3478?transport=udp', 'turn:host:3478?transport=tcp', 'turns:host:443?transport=tcp'], username: '…', credential: '…' }
+    // The TURN login comes from our small backend (Netlify function), so no secret is in this public page.
+    // It returns short-lived credentials (Cloudflare) or the account login kept in Netlify's secret settings.
+    const TURN_API_URL = 'https://friends-connect-api.netlify.app/api/turn-credentials';
+    let turnCache = null; // { servers, expiresAt }
+
+    async function fetchTurnServers() {
+      if (turnCache && Date.now() < turnCache.expiresAt) return turnCache.servers;
+      const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, 4000);
+      try {
+        const res = await fetch(TURN_API_URL, { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined });
+        const data = await res.json();
+        const servers = (data.iceServers || []).filter(function (s) { return s && s.username; });
+        const ttlMs = Math.max(60, Math.min(Number(data.ttl) || 600, 6 * 3600)) * 1000;
+        turnCache = { servers: servers, expiresAt: Date.now() + ttlMs - 5 * 60000 };
+        return servers;
+      } catch (e) {
+        return turnCache ? turnCache.servers : [];
+      } finally {
+        clearTimeout(timer);
+      }
+    }
     const PEERJS_TURN = { urls: ['turn:eu-0.turn.peerjs.com:3478', 'turn:us-0.turn.peerjs.com:3478'], username: 'peerjs', credential: 'peerjsp' };
 
     async function buildIceConfig() {
       const iceServers = [];
       if (NET_CONFIG.usePublicIce) {
         iceServers.push({ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] });
-        if (TURN_ACCOUNT) iceServers.push(TURN_ACCOUNT);
+        (await fetchTurnServers()).forEach(function (s) { iceServers.push(s); });
         iceServers.push(PEERJS_TURN);
       }
       NET_CONFIG.extraIce.forEach(function (s) { iceServers.push(s); });
@@ -2532,6 +2551,7 @@
     }
 
     function renderAuthenticatedSession(session) {
+      if (NET_CONFIG.usePublicIce) fetchTurnServers(); // warm up so the first call doesn't wait
       currentSession = session;
       $('otpLoginScreen').classList.add('hidden');
       $('mainAppContainer').classList.remove('hidden');

@@ -116,11 +116,10 @@ Minor UX note: when the other side hangs up, the receiver sometimes sees "Connec
 - They don't call the backend and can't be built yet (see Build health).
 - They are a long way from the plan's ConnectionService/CallKit/PushKit design.
 
-**R12 — No working TURN relay (found 7 Nov).**
-- Calls between different networks, e.g. a phone on mobile data and a laptop on Wi-Fi, need a TURN relay.
-- Tested from Nikhil's Mac: the free no-sign-up relays (Metered Open Relay, PeerJS TURN) return nothing.
-- Fix: create a free ExpressTURN (1 TB/month) or Metered (20 GB/month) account and put its login in `TURN_ACCOUNT` in `docs/index.html`.
-- Already fixed the same day: sound is unlocked on the Call/Accept tap, ringing offers are re-sent, and the page reconnects when a phone tab wakes up.
+**R12 — TURN relay (7 Nov).**
+- The free no-sign-up relays don't work. Nikhil's free ExpressTURN account does (verified from his Mac).
+- The login is not in the repo. A Netlify function, `/api/turn-credentials`, hands it out only to the demo site.
+- **Next step: short-lived credentials.** Add a Cloudflare TURN key (`CF_TURN_KEY_ID`, `CF_TURN_API_TOKEN` in Netlify) and the same endpoint switches to expiring credentials.
 
 ## Development environment (set up 2026-11-07)
 

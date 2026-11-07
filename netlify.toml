@@ -1,0 +1,8 @@
+# Netlify hosts the small Friends Connect API (serverless functions in netlify/functions).
+# The demo itself stays on GitHub Pages. Secrets are Netlify environment variables, never here.
+[build]
+  publish = "netlify/public"
+  command = ""
+
+[functions]
+  directory = "netlify/functions"

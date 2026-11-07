@@ -12,7 +12,7 @@
 
 ## The demo — `docs/index.html`
 - One self-contained file with no build step. Libraries come from unpkg: `peerjs@1.5.4`, `mqtt@5.10.1`. Edit only `docs/index.html`; the duplicate root `index.html` was removed on 2026-11-07.
-- **Calls across networks need TURN.** `buildIceConfig()` uses Google STUN + `TURN_ACCOUNT` (empty until Nikhil creates a free ExpressTURN/Metered account) + PeerJS TURN. Tested from his Mac on 7 Nov 2026: Metered Open Relay (static-auth and legacy) and PeerJS TURN give no relay candidates, so don't rely on them. `?relay=1` forces relay-only; the call screen shows "Connected directly / via relay server".
+- **Calls across networks need TURN.** `buildIceConfig()` = Google STUN + servers from `TURN_API_URL` (our Netlify function) + PeerJS TURN. No TURN secret may ever be in this public repo. `?relay=1` forces relay-only; the call screen shows "Connected directly / via relay server". Tested from Nikhil's Mac on 7 Nov 2026: Metered Open Relay and PeerJS TURN give no relay candidates; his ExpressTURN free account (`free.expressturn.com:3478` UDP+TCP, not TLS 443) does.
 - Ringing offers are re-sent every 3 s and retained, so a phone whose tab was asleep still rings; `handledCallIds` stops finished/declined calls from ringing again.
 - **Media goes only over PeerJS (WebRTC).** MQTT (`wss://broker.emqx.io`) carries only small call-control messages; `BroadcastChannel` covers tabs in the same browser.
 - `MQTT_TOPIC_PREFIX` / `SIGNAL_CHANNEL_NAME` are versioned (`…_v7`). If you change the message protocol, bump both so old open tabs don't interfere.
@@ -33,6 +33,11 @@ cd tests/e2e && npm install && npm test   # must stay green (38 checks on 2026-1
 - Push to `main` with changes under `docs/`. `.github/workflows/publish-pages.yml` copies `docs/` (plus `.nojekyll`) to `gh-pages`, then GitHub's "pages build and deployment" publishes it in about a minute.
 - Pages is set to "Deploy from branch: gh-pages", and the `github-pages` environment only accepts `gh-pages`. Don't try to deploy from `main` directly.
 - Check a deploy: `gh run list -R nikhilkilivayil/Friends-Connect-App -L 4`
+
+## Backend API — Netlify (`netlify/`, `netlify.toml`)
+- Netlify project `friends-connect-api` (team `nikhilkilivayil`, site id `e21e56ac-f5dc-49d0-bb28-1bc7b199f872`) → https://friends-connect-api.netlify.app
+- `GET /api/turn-credentials` (`netlify/functions/turn-credentials.mts`): only the GitHub Pages origin + localhost, rate-limited. Returns Cloudflare short-lived TURN credentials when `CF_TURN_KEY_ID` + `CF_TURN_API_TOKEN` are set, else the ExpressTURN login from `EXPRESSTURN_USERNAME` / `EXPRESSTURN_PASSWORD`.
+- Env vars are set with the Netlify connector (`manage-env-vars`, scopes `all` — the free plan rejects custom scopes and secret flags). Claude's environments can't reach netlify.com, so deploys come from Netlify's GitHub link (push to `main`).
 
 ## Other folders
 - `backend/`: NestJS with an in-memory `StoreService` and no auth (STATUS R2). `npm run build` must pass; `npm run start:dev` serves on :4000.
