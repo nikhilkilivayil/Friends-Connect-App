@@ -1,0 +1,15 @@
+{
+  "name": "friends-connect-e2e",
+  "private": true,
+  "description": "Offline end-to-end tests for the standalone demo (docs/index.html): local MQTT broker + local PeerJS server + two Playwright browsers with fake camera/mic.",
+  "scripts": {
+    "test": "node run-demo-e2e.js"
+  },
+  "devDependencies": {
+    "aedes": "1.2.0",
+    "mqtt": "5.10.1",
+    "peer": "1.0.2",
+    "peerjs": "1.5.4",
+    "ws": "8.22.1"
+  }
+}
