@@ -35,7 +35,8 @@ cd tests/e2e && npm install && npm test   # must stay green (38 checks on 2026-1
 - Check a deploy: `gh run list -R nikhilkilivayil/Friends-Connect-App -L 4`
 
 ## Backend API — Netlify (`netlify/`, `netlify.toml`)
-- Netlify project `friends-connect-api` (team `nikhilkilivayil`, site id `e21e56ac-f5dc-49d0-bb28-1bc7b199f872`) → https://friends-connect-api.netlify.app
+- Netlify project `friends-connect-api` (team `nikhilkilivayil`, site id `f1ecac59-0593-4be2-ac15-3c8d477b090d`) → https://friends-connect-api.netlify.app. It is linked to this GitHub repo and redeploys on every push to `main`. An older empty project, `friends-connect-api-unused` (`e21e56ac…`), still exists and can be deleted.
+- Verified 7 Nov 2026 from the live site: the endpoint returns `provider: expressturn`, and a relay-only ICE gather gets relay candidates (UDP + TCP).
 - `GET /api/turn-credentials` (`netlify/functions/turn-credentials.mts`): only the GitHub Pages origin + localhost, rate-limited. Returns Cloudflare short-lived TURN credentials when `CF_TURN_KEY_ID` + `CF_TURN_API_TOKEN` are set, else the ExpressTURN login from `EXPRESSTURN_USERNAME` / `EXPRESSTURN_PASSWORD`.
 - Env vars are set with the Netlify connector (`manage-env-vars`, scopes `all` — the free plan rejects custom scopes and secret flags). Claude's environments can't reach netlify.com, so deploys come from Netlify's GitHub link (push to `main`).
 

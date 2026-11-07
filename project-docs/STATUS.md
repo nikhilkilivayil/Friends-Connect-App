@@ -119,6 +119,7 @@ Minor UX note: when the other side hangs up, the receiver sometimes sees "Connec
 **R12 — TURN relay (7 Nov).**
 - The free no-sign-up relays don't work. Nikhil's free ExpressTURN account does (verified from his Mac).
 - The login is not in the repo. A Netlify function, `/api/turn-credentials`, hands it out only to the demo site.
+- **Live since 7 Nov:** https://friends-connect-api.netlify.app redeploys from GitHub on each push. Tested from the live site: it returns ExpressTURN servers, and the browser gets relay candidates (UDP + TCP).
 - **Next step: short-lived credentials.** Add a Cloudflare TURN key (`CF_TURN_KEY_ID`, `CF_TURN_API_TOKEN` in Netlify) and the same endpoint switches to expiring credentials.
 
 ## Development environment (set up 2026-11-07)
