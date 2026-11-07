@@ -39,4 +39,11 @@ cd tests/e2e && npm install && npm test   # must stay green (23 checks on 2026-1
 ## Git
 - Identity: `Nikhil Kilivayil <nikhilkilivayil@gmail.com>`. The repo is **public**, so never commit secrets.
 - His Mac working copy is `~/Friends Connect App-Claude`. After pushing from the cloud, `git pull` there so his copy stays current.
+- How Claude pushes (verified 2026-11-07). The Mac's device shell has no GitHub credentials; the cloud clone does after `add_repo` with push access.
+  - **Normal path:** clone in the cloud, commit, push, then `git pull --ff-only` in the Mac folder.
+  - **If the commits were made in the Mac folder:**
+    1. In the Mac folder: `git bundle create .git/claude-outgoing.bundle origin/main..main`
+    2. Stage that file to the cloud, then `git fetch <bundle> main:refs/remotes/mac/main && git push origin mac/main:main`
+    3. Run `git fetch` in the Mac folder and delete the bundle.
+  - Nikhil's own `git push` from the Mac uses his GitHub login.
 - `.antigravity-export/` in that folder holds the raw Antigravity chats. It is gitignored and stays local; never commit it.
