@@ -1,0 +1,49 @@
+# Publishes the standalone demo (docs/) to the live site:
+#   https://nikhilkilivayil.github.io/Friends-Connect-App/
+#
+# GitHub Pages for this repo is set to "Deploy from a branch: gh-pages", and the
+# github-pages environment only accepts deployments from gh-pages. So instead of
+# deploying from main directly (which GitHub rejects), this copies docs/ to the
+# gh-pages branch; GitHub's own "pages build and deployment" then puts it live.
+name: Publish demo to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - ".github/workflows/publish-pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-pages
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+
+      - name: Copy docs/ to the gh-pages branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          SRC_SHA="$(git rev-parse --short HEAD)"
+          SITE="$(mktemp -d)"
+          cp -R docs/. "$SITE/"
+          touch "$SITE/.nojekyll"   # serve files as-is (no Jekyll processing)
+          cd "$SITE"
+          git init -q -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Publish docs/ from main@${SRC_SHA}"
+          git push --force "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" gh-pages
+          echo "Published main@${SRC_SHA} to gh-pages"
