@@ -977,7 +977,7 @@
         </div>
 
         <div style="display:flex;align-items:center;gap:0.625rem;">
-          <div class="wallet-badge" id="headerWalletBadge">Balance: <span id="coinBalanceText">650</span> Coins</div>
+          <div class="wallet-badge" id="headerWalletBadge">Balance: <span id="coinBalanceText">10,000</span> Coins</div>
           <button type="button" class="btn btn-secondary" id="signOutBtn" style="min-height:38px;padding:0.4rem 0.875rem;font-size:0.8125rem;">
             Sign Out
           </button>
@@ -1035,7 +1035,7 @@
               <span class="eyebrow" style="color:var(--text-on-ink-muted);">Your coins</span>
               <span class="pill">Instant top-up</span>
             </div>
-            <div class="balance-figure"><span id="coinBalanceCard">650</span><small>coins</small></div>
+            <div class="balance-figure"><span id="coinBalanceCard">10,000</span><small>coins</small></div>
             <p class="sub" style="margin-bottom:1.25rem;">Spent per minute when you call a verified celebrity.</p>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.625rem;">
               <button type="button" class="btn btn-secondary" onclick="rechargeCoins(300)">+300 Coins (₹149)</button>
@@ -1520,7 +1520,7 @@
       '+919000000001': { role: 'SUPER_ADMIN', name: 'Platform Super Admin', roleLabel: 'SUPER ADMIN', showWallet: false }
     };
 
-    const STARTING_COINS = 650;
+    const STARTING_COINS = 10000; // demo accounts start with 10,000 coins
     const STARTING_CELEB_EARNINGS = 14500;
     const RING_TIMEOUT_MS = 60000;
     const MEDIA_CONNECT_TIMEOUT_MS = 35000; // relayed (TURN) mobile calls can take a while
@@ -1530,7 +1530,7 @@
     const SESSION_STORAGE_KEY = 'fc_auth_session_v1';
     const TAB_SESSION_KEY = 'fc_tab_session_v1';
     const MODERATION_STORAGE_KEY = 'fc_moderation_v1';
-    const WALLET_KEY_PREFIX = 'fc7_wallet_';
+    const WALLET_KEY_PREFIX = 'fc8_wallet_'; // v8: everyone restarts at 10,000 (7 Nov 2026)
     const EARNINGS_KEY_PREFIX = 'fc7_earnings_';
     const SIGNAL_CHANNEL_NAME = 'fc_signal_v7';
     const MQTT_TOPIC_PREFIX = 'friends_connect_nikhil_v7';

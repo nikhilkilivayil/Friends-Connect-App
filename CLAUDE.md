@@ -17,7 +17,7 @@
 - **Media goes only over PeerJS (WebRTC).** MQTT (`wss://broker.emqx.io`) carries only small call-control messages; `BroadcastChannel` covers tabs in the same browser.
 - `MQTT_TOPIC_PREFIX` / `SIGNAL_CHANNEL_NAME` are versioned (`…_v7`). If you change the message protocol, bump both so old open tabs don't interfere.
 - Accounts live in `ACCOUNT_DIRECTORY` (7 demo numbers); the OTP is `123456`.
-- State is per browser: `fc7_wallet_*`, `fc7_earnings_*`, `fc_moderation_v1` in localStorage.
+- State is per browser: `fc8_wallet_* (start 10,000 coins)`, `fc7_earnings_*`, `fc_moderation_v1` in localStorage.
 - Login is **per tab** (sessionStorage `fc_tab_session_v1`): refresh/Back keep it, a new tab or visit starts at the OTP screen, Sign Out ends it. Never add cookie/localStorage auto-login or any URL that signs in without the OTP (Nikhil asked for this twice).
 - Build DOM from user text with `el()` / `textContent`. Never use `innerHTML` with user input.
 
