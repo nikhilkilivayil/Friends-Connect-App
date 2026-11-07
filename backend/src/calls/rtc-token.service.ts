@@ -42,9 +42,8 @@ export class RtcTokenService {
     mode: CallSessionMode;
   }): Promise<WebRtcSessionConfig> {
     // Strict Enforcement: Customer Care Support (SUPPORT_AUDIO) and *_AUDIO modes NEVER allow camera publishing
-    const isVideoAllowed =
-      (params.mode === 'RANDOM_VIDEO' || params.mode === 'CELEB_VIDEO') &&
-      params.mode !== 'SUPPORT_AUDIO';
+    // Only the two *_VIDEO modes may publish a camera track.
+    const isVideoAllowed = params.mode === 'RANDOM_VIDEO' || params.mode === 'CELEB_VIDEO';
 
     const iceServers: WebRtcIceServer[] = [...this.defaultIceServers];
     if (process.env.TURN_URL) {

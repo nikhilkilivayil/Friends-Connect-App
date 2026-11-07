@@ -174,9 +174,7 @@ export class WebRtcSignalingGateway {
    * strip/reject any video media description in SDP if a modified client attempts to negotiate video.
    */
   private enforceAudioOnlyPolicyOnSdp(sdp: string, mode: CallSessionMode): string {
-    const isVideoAllowed =
-      (mode === 'RANDOM_VIDEO' || mode === 'CELEB_VIDEO') &&
-      mode !== 'SUPPORT_AUDIO';
+    const isVideoAllowed = mode === 'RANDOM_VIDEO' || mode === 'CELEB_VIDEO';
 
     if (isVideoAllowed) {
       return sdp;

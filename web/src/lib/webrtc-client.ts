@@ -47,9 +47,8 @@ export class WebRtcCallClient {
     this.userId = params.userId;
     this.callMode = params.callMode;
 
-    const isVideoAllowed =
-      (params.callMode === 'RANDOM_VIDEO' || params.callMode === 'CELEB_VIDEO') &&
-      params.callMode !== 'SUPPORT_AUDIO';
+    // Only the two *_VIDEO modes may use the camera (SUPPORT_AUDIO is always audio-only).
+    const isVideoAllowed = params.callMode === 'RANDOM_VIDEO' || params.callMode === 'CELEB_VIDEO';
 
     // 1. Capture Local Audio / Video MediaStream via WebRTC getUserMedia
     try {
