@@ -33,7 +33,7 @@ Legend: ✅ done · 🟡 partial / demo-only · ❌ missing
 | 14 | Customer care calls users/celebrities back | 🟡 two hard-coded "call back" buttons | — | ❌ | ❌ | ❌ |
 | 15 | Chat with customer care, instant + sound + unread badge | ❌ agent's box only echoes locally; users/celebrities have no chat | 🟡 REST tickets/messages, no real-time | 🟡 mock | ❌ | ❌ |
 | 16 | Remote video on main stage, two-way audio, ringtone stops on accept | ✅ verified by tests | — | — | — | — |
-| 17 | Clean, minimal-colour design | ✅ (redesigned 26 Oct) | — | different (dark) style | — | — |
+| 17 | Clean, minimal-colour design | ✅ "Ivory Editorial" (Option B) chosen 7 Nov: cream page, Fraunces serif headings, one coral accent, pill buttons | — | different (dark) style | — | — |
 | 18 | Public hosting, works when the Mac is off | ✅ GitHub Pages | ❌ not hosted | ❌ not hosted | — | — |
 | 19 | Native Android + iOS apps for all roles | — | — | — | ❌ | ❌ |
 

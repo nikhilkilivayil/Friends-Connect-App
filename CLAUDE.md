@@ -3,7 +3,7 @@
 ## Owner and working style
 - Owner: **Nikhil**, a founder rather than a developer. Reply in **Malayalam**; English technical terms are fine. Keep updates short.
 - He wants to see every change on the **public site**, not localhost. After a change: push to `main`, wait for the deploy, then give or open https://nikhilkilivayil.github.io/Friends-Connect-App/
-- Design taste: clean, standard, few colours.
+- Design: he chose **Option B — Ivory Editorial** (7 Nov 2026): cream `#faf8f4` page, ink `#161616`, one coral accent `#c2412d`, Fraunces serif headings + Inter body, pill buttons, white cards with thin `#e6e1d8` borders, one dark "ink" card for emphasis. Keep new screens in this style (tokens are in the `:root` block of `docs/index.html`).
 
 ## Read first
 - `project-docs/REQUIREMENTS.md`: the brief, taken from his Antigravity chats. The appendix has his original Malayalam requests verbatim.

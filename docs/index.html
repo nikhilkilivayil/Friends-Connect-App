@@ -6,7 +6,7 @@
   <title>Friends Connect — Social Audio & Video, Celebrities & Live Events</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <!-- PeerJS = WebRTC voice/video media. MQTT over WebSockets = call signaling (ring / accept / end). -->
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
@@ -23,65 +23,40 @@
 
     @layer theme {
       :root {
-        color-scheme: light dark;
-        --bg-page: #f8fafc;
+        color-scheme: light;
+        --bg-page: #faf8f4;
         --bg-surface: #ffffff;
-        --bg-subtle: #f1f5f9;
-        --bg-muted: #e2e8f0;
-        --text-primary: #0f172a;
-        --text-secondary: #475569;
-        --text-muted: #64748b;
-        --border-subtle: #e2e8f0;
-        --border-control: #64748b;
-        --accent-primary: #2563eb;
-        --accent-primary-hover: #1d4ed8;
+        --bg-subtle: #f3efe8;
+        --bg-muted: #e9e3d8;
+        --bg-ink: #161616;
+        --text-primary: #161616;
+        --text-secondary: #57534b;
+        --text-muted: #6e695f;
+        --text-on-ink: #faf8f4;
+        --text-on-ink-muted: #bdb7ac;
+        --border-subtle: #e6e1d8;
+        --border-strong: #d6cfc2;
+        --border-control: #8c867b;
+        --accent-primary: #c2412d;
+        --accent-primary-hover: #a3341f;
         --accent-primary-fg: #ffffff;
-        --accent-soft: #eff6ff;
-        --accent-border: #bfdbfe;
-        --status-ok-bg: #f0fdf4;
-        --status-ok-fg: #166534;
-        --status-ok-border: #86efac;
-        --status-warn-bg: #fffbeb;
-        --status-warn-fg: #92400e;
-        --status-warn-border: #fcd34d;
-        --status-danger-bg: #fef2f2;
-        --status-danger-fg: #991b1b;
-        --status-danger-border: #fca5a5;
-        --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
-        --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
-        --radius-sm: 8px;
-        --radius-md: 12px;
-        --radius-lg: 16px;
-      }
-
-      @media (prefers-color-scheme: dark) {
-        :root {
-          --bg-page: #09090b;
-          --bg-surface: #121215;
-          --bg-subtle: #18181b;
-          --bg-muted: #27272a;
-          --text-primary: #f4f4f5;
-          --text-secondary: #a1a1aa;
-          --text-muted: #71717a;
-          --border-subtle: #27272a;
-          --border-control: #71717a;
-          --accent-primary: #2563eb;
-          --accent-primary-hover: #3b82f6;
-          --accent-primary-fg: #ffffff;
-          --accent-soft: rgba(37, 99, 235, 0.14);
-          --accent-border: rgba(59, 130, 246, 0.4);
-          --status-ok-bg: rgba(22, 101, 52, 0.22);
-          --status-ok-fg: #86efac;
-          --status-ok-border: rgba(134, 239, 172, 0.4);
-          --status-warn-bg: rgba(146, 64, 14, 0.28);
-          --status-warn-fg: #fde68a;
-          --status-warn-border: rgba(253, 230, 138, 0.45);
-          --status-danger-bg: rgba(153, 27, 27, 0.25);
-          --status-danger-fg: #fca5a5;
-          --status-danger-border: rgba(252, 165, 165, 0.4);
-          --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-          --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
-        }
+        --accent-soft: #fbede9;
+        --accent-border: #edb9ae;
+        --status-ok-bg: #eef5ef;
+        --status-ok-fg: #1f5c3a;
+        --status-ok-border: #b9d8c2;
+        --status-warn-bg: #fdf3e2;
+        --status-warn-fg: #8a4b0b;
+        --status-warn-border: #ebc98c;
+        --status-danger-bg: #fbeae7;
+        --status-danger-fg: #9b2c1c;
+        --status-danger-border: #edb9ae;
+        --shadow-sm: 0 1px 2px rgba(22, 22, 22, 0.04);
+        --shadow-md: 0 18px 50px rgba(22, 22, 22, 0.10);
+        --radius-sm: 12px;
+        --radius-md: 16px;
+        --radius-lg: 24px;
+        --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
       }
 
       @media (forced-colors: active) {
@@ -738,6 +713,114 @@
         box-shadow: var(--shadow-md);
         display: none;
       }
+
+      /* ================= Option B — Ivory Editorial ================= */
+      h1, h2, h3 { font-family: var(--font-display); font-weight: 500; letter-spacing: -0.02em; }
+      h2 { font-size: 1.6rem; line-height: 1.15; }
+      h3 { font-size: 1.2rem; }
+      .eyebrow {
+        display: inline-block;
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+      }
+      .hero-title {
+        font-family: var(--font-display);
+        font-weight: 500;
+        font-size: clamp(2.3rem, 5.2vw, 4rem);
+        line-height: 1.02;
+        letter-spacing: -0.035em;
+        margin: 0.6rem 0 0.9rem;
+      }
+      .hero-title em { color: var(--accent-primary); font-style: italic; }
+      .wordmark {
+        font-family: var(--font-display);
+        font-weight: 600;
+        font-size: 1.55rem;
+        letter-spacing: -0.03em;
+        color: var(--text-primary);
+        line-height: 1;
+      }
+      .wordmark-dot { color: var(--accent-primary); }
+      header {
+        background-color: rgba(250, 248, 244, 0.9);
+        backdrop-filter: saturate(140%) blur(10px);
+        -webkit-backdrop-filter: saturate(140%) blur(10px);
+        padding-block: 1rem;
+      }
+      main { padding-top: 2.5rem; }
+      .pill { background: transparent; border-color: var(--border-strong); color: var(--text-secondary); letter-spacing: 0.04em; }
+      .role-badge-locked, .wallet-badge { background: transparent; border-color: var(--border-strong); border-radius: 999px; }
+      .btn { border-radius: 999px; padding: 0.7rem 1.4rem; font-weight: 600; letter-spacing: -0.005em; }
+      .btn-primary { box-shadow: 0 6px 18px rgba(194, 65, 45, 0.22); }
+      .btn-secondary { background-color: transparent; border: 1.5px solid var(--text-primary); }
+      .btn-secondary:hover:not(:disabled) { background-color: var(--text-primary); color: var(--bg-page); }
+      .btn-subtle { background-color: transparent; border-color: var(--border-strong); }
+      .btn-subtle:hover:not(:disabled) { background-color: var(--bg-subtle); }
+      .btn-accept { background-color: #1f6b45; }
+      .btn-accept:hover:not(:disabled) { background-color: #185535; }
+      .btn-reject { background-color: #b42318; }
+      .btn-reject:hover:not(:disabled) { background-color: #8f1c13; }
+      .card { border-radius: var(--radius-lg); box-shadow: none; padding: 1.75rem; }
+      .card:hover { box-shadow: none; border-color: var(--border-strong); }
+      .card-hero { padding: clamp(1.75rem, 4vw, 2.75rem); }
+      .card-ink { background-color: var(--bg-ink); border-color: var(--bg-ink); color: var(--text-on-ink); }
+      .card-ink:hover { border-color: var(--bg-ink); }
+      .card-ink h3, .card-ink strong { color: var(--text-on-ink); }
+      .card-ink .sub { color: var(--text-on-ink-muted); }
+      .card-ink .pill { color: var(--text-on-ink-muted); border-color: #4a4740; }
+      .card-ink .btn-secondary { color: var(--text-on-ink); border-color: #4a4740; }
+      .card-ink .btn-secondary:hover:not(:disabled) { background-color: var(--text-on-ink); color: var(--bg-ink); border-color: var(--text-on-ink); }
+      .balance-figure { font-family: var(--font-display); font-size: 3.6rem; line-height: 1; letter-spacing: -0.03em; margin: 1rem 0 1.25rem; }
+      .balance-figure small { font-family: 'Inter', sans-serif; font-size: 0.95rem; color: var(--text-on-ink-muted); margin-inline-start: 0.35rem; letter-spacing: 0; }
+      .verified-tick { background-color: var(--accent-primary); }
+      .avatar-img { border-radius: 50%; }
+      .rate-box, .media-item { border-radius: var(--radius-md); }
+      .section { margin-top: 3rem; }
+      .section-head { border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.9rem; margin-bottom: 1.25rem; }
+      /* login */
+      .login-screen { background: var(--bg-page); }
+      .login-shell { max-width: 1040px; border-radius: 28px; box-shadow: var(--shadow-md); }
+      .login-showcase { background-color: var(--bg-ink); color: var(--text-on-ink); border-inline-end: 0; padding: 3rem; }
+      .login-showcase .wordmark { color: var(--text-on-ink); }
+      .login-showcase .hero-title { color: var(--text-on-ink); }
+      .login-showcase .sub { color: var(--text-on-ink-muted); }
+      .login-showcase .feature-item { background: transparent; border-color: #3a3833; color: var(--text-on-ink-muted); }
+      .login-showcase .feature-item strong { color: var(--text-on-ink); font-family: var(--font-display); font-weight: 500; font-size: 1rem; }
+      .login-showcase .fine-print { color: #8f897d; }
+      .login-card { padding: 3rem; }
+      .cred-list { background: transparent; border-color: var(--border-subtle); }
+      .cred-row { border-radius: 10px; }
+      .cred-row:hover:not(:disabled) { background-color: var(--bg-subtle); }
+      dialog { border-radius: 28px; padding: 1.75rem; }
+      dialog::backdrop { background: rgba(22, 22, 22, 0.55); }
+      .toast { border-radius: 999px; padding: 0.8rem 1.3rem; }
+      .card-ink { display: flex; flex-direction: column; }
+      .card-ink > div:last-child { margin-top: auto; }
+      @media (max-width: 720px) {
+        header { padding-block: 0.6rem; }
+        .header-row { gap: 0.5rem 0.75rem; }
+        .wordmark { font-size: 1.3rem; }
+        #activeUserSubtitle, .role-badge-locked, #realtimeSignalBadge { display: none !important; }
+        main { padding-top: 1.25rem; }
+        .card { padding: 1.35rem; }
+        .login-screen { padding: 0.75rem; align-items: flex-start; }
+        .login-showcase { padding: 1.75rem 1.5rem; }
+        .login-showcase .feature-list, .login-showcase .fine-print, .login-showcase .sub { display: none; }
+        .login-showcase .hero-title { font-size: 2.1rem; margin-bottom: 0; }
+        .login-showcase > div > div:first-child { margin-bottom: 1.25rem !important; }
+        .login-card { padding: 1.75rem 1.5rem; }
+      }
+      /* entrance motion */
+      @keyframes riseIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+      .role-view:not(.hidden) .card, .login-shell { animation: riseIn 0.55s cubic-bezier(.2,.7,.2,1) both; }
+      .role-view:not(.hidden) .card:nth-child(2) { animation-delay: 0.06s; }
+      .role-view:not(.hidden) .card:nth-child(3) { animation-delay: 0.12s; }
+      @media (prefers-reduced-motion: reduce) {
+        .role-view:not(.hidden) .card, .login-shell, .call-avatar { animation: none; }
+      }
     }
 
     @layer utilities {
@@ -753,17 +836,12 @@
     <div class="login-shell">
       <div class="login-showcase">
         <div>
-          <div class="brand" style="margin-bottom:1.75rem;">
-            <div class="logo">FC</div>
-            <div>
-              <span class="pill">Multi-Role Platform</span>
-              <h1 style="font-size:1.25rem;margin-top:0.2rem;">Friends Connect</h1>
-            </div>
+          <div style="margin-bottom:2.5rem;">
+            <span class="wordmark">friends<span class="wordmark-dot">.</span>connect</span>
           </div>
 
-          <h2 style="font-size:1.65rem;line-height:1.25;margin-bottom:0.75rem;">
-            Audio & Video Calling, Verified Celebrities, and Nearby Events.
-          </h2>
+          <span class="eyebrow" style="color:var(--text-on-ink-muted);">Calls · Celebrities · Events</span>
+          <h1 class="hero-title">Say hello to a <em>stranger</em> today.</h1>
           <p class="sub">
             Connect with online friends via 1-tap WebRTC audio or video calls, schedule per-minute sessions with verified celebrities, and book QR passes for local events.
           </p>
@@ -788,13 +866,14 @@
           </div>
         </div>
 
-        <div style="margin-top:2rem;font-size:0.75rem;color:var(--text-muted);">
+        <div class="fine-print" style="margin-top:2rem;font-size:0.75rem;">
           Role-Isolated Session Cookies • Real-Time MQTT + PeerJS WebRTC • Web, Android & iOS
         </div>
       </div>
 
       <div class="login-card">
-        <h2 style="font-size:1.35rem;margin-bottom:0.25rem;">Sign in to your account</h2>
+        <span class="eyebrow">Welcome back</span>
+        <h2 style="font-size:2rem;margin:0.35rem 0 0.4rem;">Sign in</h2>
         <p class="sub" style="margin-bottom:1rem;">Select an account below to pre-fill or enter your mobile number and 6-digit OTP.</p>
         <div class="cred-list" role="group" aria-label="Demo accounts">
           <div style="color:var(--text-secondary);font-weight:600;margin-bottom:0.375rem;padding:0 0.5rem;font-size:0.75rem;">
@@ -838,8 +917,7 @@
               name="phone"
               type="tel"
               autocomplete="tel"
-              value="+919876543210"
-              placeholder="+919876543210"
+              placeholder="+91 mobile number"
               required
             />
           </div>
@@ -857,7 +935,7 @@
               autocorrect="off"
               autocapitalize="off"
               spellcheck="false"
-              value="123456"
+              placeholder="••••••"
               style="letter-spacing:0.25em;font-weight:600;"
               required
             />
@@ -876,10 +954,9 @@
     <header>
       <div class="container header-row">
         <div class="brand">
-          <div class="logo">FC</div>
+          <span class="wordmark">friends<span class="wordmark-dot">.</span>connect</span>
           <div>
             <div style="display:flex;align-items:center;gap:0.5rem;">
-              <strong style="font-size:1.05rem;">Friends Connect</strong>
               <span class="pill" id="activeRolePill">NORMAL USER</span>
               <span class="status-badge" id="realtimeSignalBadge" style="font-size:0.68rem;padding:0.15rem 0.5rem;">
                 <span class="status-dot"></span>
@@ -931,40 +1008,35 @@
       <!-- ==================== 1. NORMAL USER VIEW ==================== -->
       <div id="role-NORMAL" class="role-view hidden">
         <div class="grid-3">
-          <div class="card">
-            <div class="status-badge">
-              <span class="status-dot"></span>
-              <span>Matches you with any Normal User online now</span>
+          <div class="card card-hero">
+            <div style="display:flex;flex-wrap:wrap;align-items:center;gap:0.75rem;">
+              <span class="eyebrow">Random connect</span>
+              <span class="status-badge"><span class="status-dot"></span><span>Friends online now</span></span>
             </div>
-            <h2 style="margin-top:0.75rem;font-size:1.4rem;">
-              Random Friend Matchmaking — Audio & Video
-            </h2>
-            <p class="sub" style="max-width:600px;">
-              Get matched with another user who is online right now — the first person to accept joins your call. Or reach Customer Care (audio-only).
+            <h2 class="hero-title">Say hello to a <em>stranger</em> today.</h2>
+            <p class="sub" style="max-width:560px;font-size:1rem;line-height:1.6;">
+              One tap rings people who are online right now — the first one to accept joins your call. Talk by voice or turn the camera on; your number stays private.
             </p>
             <div class="btn-row">
               <button type="button" class="btn btn-primary" onclick="startWebRtcCall('RANDOM_AUDIO', 'Random Friend', 0, 'NORMAL', null)">
-                Start Random Audio Call
+                Start audio call
               </button>
               <button type="button" class="btn btn-secondary" onclick="startWebRtcCall('RANDOM_VIDEO', 'Random Friend', 0, 'NORMAL', null)">
-                Start Random Video Call
+                Start video call
               </button>
               <button type="button" class="btn btn-subtle" onclick="startWebRtcCall('SUPPORT_AUDIO', 'Customer Care', 0, 'SUPPORT', null)">
-                Customer Care (Audio-Only)
+                Talk to customer care
               </button>
             </div>
           </div>
 
-          <div class="card">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
-              <h3>Coin Wallet</h3>
-              <span class="pill">Instant Top-Up</span>
+          <div class="card card-ink">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span class="eyebrow" style="color:var(--text-on-ink-muted);">Your coins</span>
+              <span class="pill">Instant top-up</span>
             </div>
-            <p class="sub">Used for per-minute Audio & Video sessions with Verified Celebrities.</p>
-            <div style="background-color:var(--bg-subtle);padding:0.875rem 1rem;border-radius:var(--radius-md);margin:1rem 0;display:flex;justify-content:space-between;align-items:center;border:1px solid var(--border-subtle);">
-              <span style="font-size:0.8125rem;color:var(--text-secondary);">Available Balance</span>
-              <strong style="font-size:1.25rem;"><span id="coinBalanceCard">650</span> Coins</strong>
-            </div>
+            <div class="balance-figure"><span id="coinBalanceCard">650</span><small>coins</small></div>
+            <p class="sub" style="margin-bottom:1.25rem;">Spent per minute when you call a verified celebrity.</p>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.625rem;">
               <button type="button" class="btn btn-secondary" onclick="rechargeCoins(300)">+300 Coins (₹149)</button>
               <button type="button" class="btn btn-secondary" onclick="rechargeCoins(1000)">+1000 Coins (₹399)</button>
@@ -2333,6 +2405,7 @@
 
       loadWallet();
       refreshSubscriptions();
+      window.scrollTo(0, 0);
     }
 
     function signOutSession() {
