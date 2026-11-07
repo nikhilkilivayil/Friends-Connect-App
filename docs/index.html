@@ -1005,6 +1005,11 @@
         </div>
       </div>
 
+      <div id="lastCallDiag" class="ringing-helper-box hidden" role="status" style="display:flex;gap:0.75rem;align-items:flex-start;justify-content:space-between;">
+        <div><strong>Last call didn't connect.</strong> <span id="lastCallDiagText"></span></div>
+        <button type="button" class="btn btn-subtle" style="min-height:34px;padding:0.3rem 0.8rem;" onclick="document.getElementById('lastCallDiag').classList.add('hidden')">Close</button>
+      </div>
+
       <!-- ==================== 1. NORMAL USER VIEW ==================== -->
       <div id="role-NORMAL" class="role-view hidden">
         <div class="grid-3">
@@ -1907,16 +1912,53 @@
       mc.on('error', function () { showToast('Media connection error'); });
       const pc = mc.peerConnection;
       if (pc) {
+        const myCall = call;
+        myCall.diag = { mine: {}, theirs: {}, state: 'checking' };
+        pc.addEventListener('icecandidate', function (e) {
+          if (e.candidate && e.candidate.type) myCall.diag.mine[e.candidate.type] = true;
+        });
+        const poll = setInterval(async function () {
+          if (call !== myCall || myCall.mediaConnected) { clearInterval(poll); return; }
+          try {
+            (await pc.getStats()).forEach(function (r) {
+              if (r.type === 'remote-candidate' && r.candidateType) myCall.diag.theirs[r.candidateType] = true;
+              if (r.type === 'local-candidate' && r.candidateType) myCall.diag.mine[r.candidateType] = true;
+            });
+          } catch (e) {}
+          myCall.diag.state = pc.iceConnectionState;
+          $('callRouteText').textContent = diagText(myCall.diag);
+        }, 1500);
         pc.addEventListener('iceconnectionstatechange', function () {
           if (!call) return;
+          if (call.diag) call.diag.state = pc.iceConnectionState;
           if (pc.iceConnectionState === 'disconnected') setCallSubText('Connection unstable — reconnecting…');
           if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
             setCallSubText(connectedSubText());
             reportConnectionRoute(pc);
           }
-          if (pc.iceConnectionState === 'failed') finishCall(true, 'Could not connect — the network blocked the call');
+          if (pc.iceConnectionState === 'failed') finishCall(true, failureText(call));
         });
       }
+    }
+
+    // Network check shown on the call screen while connecting, and kept after a failed call.
+    // host = device's own Wi-Fi address, srflx = public internet address (via STUN), relay = TURN server.
+    function diagText(d) {
+      const list = function (o) { const k = Object.keys(o); return k.length ? k.join(', ') : 'none yet'; };
+      return 'Network check — this device: ' + list(d.mine) + ' · other device: ' + list(d.theirs) + ' · ' + d.state;
+    }
+    function failureText(c) {
+      const d = c && c.diag;
+      if (!d) return 'Could not connect — the other device never joined the media connection. Keep the call page open and in front on both devices, then try again.';
+      if (!Object.keys(d.theirs).length) return 'Could not connect — the other device\'s network details never arrived. Try again with both screens on.';
+      if (!d.mine.relay && !d.theirs.relay) return 'Could not connect — the two devices could not reach each other directly. On the same Wi-Fi this usually means the router blocks devices from talking to each other (client/AP isolation). A TURN relay fixes this.';
+      return 'Could not connect — even the relay route failed. Check the internet on both devices.';
+    }
+    function rememberCallFailure(c, reason) {
+      const box = $('lastCallDiag');
+      if (!box) return;
+      $('lastCallDiagText').textContent = reason + (c && c.diag ? '  [' + diagText(c.diag) + ']' : '');
+      box.classList.remove('hidden');
     }
 
     // Shows whether the call went direct or through the TURN relay (useful when a call fails on mobile data).
@@ -2249,7 +2291,7 @@
       const myCall = call;
       mediaTimeoutTimer = setTimeout(function () {
         if (call === myCall && !call.mediaConnected) {
-          finishCall(true, 'Could not connect audio/video — please check your network and try again');
+          finishCall(true, failureText(call));
         }
       }, MEDIA_CONNECT_TIMEOUT_MS);
     }
@@ -2403,6 +2445,7 @@
       if (dlg.open) dlg.close();
 
       refreshSubscriptions();
+      if (reasonText && reasonText.indexOf('Could not connect') === 0) rememberCallFailure(ended, reasonText);
       showToast(reasonText || 'Call ended');
     }
 
