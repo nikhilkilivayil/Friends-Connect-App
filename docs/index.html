@@ -1485,6 +1485,8 @@
     </div>
     </div>
 
+    <button type="button" class="btn btn-primary hidden" id="enableSoundBtn" style="width:100%;margin-bottom:0.75rem;" onclick="playRemoteMedia()">Turn on sound</button>
+    <p id="callRouteText" style="font-size:0.75rem;color:var(--text-muted);margin:-0.25rem 0 0.75rem;min-height:1em;"></p>
     <div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:0.5rem;">
       <button type="button" class="btn btn-secondary" id="muteBtn" onclick="toggleWebRtcMute()">Mute Mic</button>
       <button type="button" class="btn btn-secondary" id="camBtn" onclick="toggleWebRtcCamera()">Turn Camera Off</button>
@@ -1521,7 +1523,8 @@
     const STARTING_COINS = 650;
     const STARTING_CELEB_EARNINGS = 14500;
     const RING_TIMEOUT_MS = 60000;
-    const MEDIA_CONNECT_TIMEOUT_MS = 20000;
+    const MEDIA_CONNECT_TIMEOUT_MS = 35000; // relayed (TURN) mobile calls can take a while
+    const OFFER_RESEND_MS = 3000;           // re-send a ringing offer so a phone that briefly lost signal still rings
 
     const SESSION_COOKIE_KEY = 'fc_auth_session';
     const SESSION_STORAGE_KEY = 'fc_auth_session_v1';
@@ -1536,11 +1539,23 @@
 
     // Service endpoints. On localhost only, they can be overridden with URL
     // parameters (?mqtt=ws://...&peerHost=...&peerPort=...&peerPath=...) for local testing.
+    //
+    // Calls between different networks (mobile data <-> Wi-Fi, office firewalls) need a
+    // TURN relay. We use Metered's free "Open Relay" (static-auth: short-lived credentials
+    // are derived from its public shared secret, so no sign-up is needed), on ports 80 and
+    // 443 over UDP, TCP and TLS, plus PeerJS's own TURN as a fallback.
+    // ?relay=1 forces every call through TURN (handy for testing what mobile users get).
     const NET_CONFIG = (function () {
-      const cfg = { mqttUrl: 'wss://broker.emqx.io:8084/mqtt', peerOptions: { debug: 0 } };
+      const p = new URLSearchParams(window.location.search);
+      const cfg = {
+        mqttUrl: 'wss://broker.emqx.io:8084/mqtt',
+        peerOptions: { debug: 0 },
+        useOpenRelay: true,
+        extraIce: [],
+        forceRelay: p.get('relay') === '1'
+      };
       const isLocal = ['localhost', '127.0.0.1'].indexOf(window.location.hostname) !== -1;
       if (isLocal) {
-        const p = new URLSearchParams(window.location.search);
         if (p.get('mqtt')) cfg.mqttUrl = p.get('mqtt');
         if (p.get('peerHost')) {
           cfg.peerOptions = {
@@ -1548,13 +1563,49 @@
             host: p.get('peerHost'),
             port: Number(p.get('peerPort') || 9000),
             path: p.get('peerPath') || '/',
-            secure: p.get('peerSecure') === '1',
-            config: { iceServers: [] }
+            secure: p.get('peerSecure') === '1'
           };
+          cfg.useOpenRelay = false; // offline test rig
         }
+        if (p.get('turnUrl')) cfg.extraIce.push({ urls: p.get('turnUrl'), username: p.get('turnUser') || '', credential: p.get('turnPass') || '' });
       }
       return cfg;
     })();
+
+    const OPEN_RELAY = { host: 'staticauth.openrelay.metered.ca', secret: 'openrelayprojectsecret' };
+    const PEERJS_TURN = { urls: ['turn:eu-0.turn.peerjs.com:3478', 'turn:us-0.turn.peerjs.com:3478'], username: 'peerjs', credential: 'peerjsp' };
+
+    // coturn "use-auth-secret" credentials: username = expiry:id, password = base64(HMAC-SHA1(secret, username))
+    async function openRelayCredentials() {
+      const username = Math.floor(Date.now() / 1000 + 6 * 3600) + ':fc' + Math.random().toString(36).slice(2, 8);
+      const enc = new TextEncoder();
+      const key = await crypto.subtle.importKey('raw', enc.encode(OPEN_RELAY.secret), { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']);
+      const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, enc.encode(username)));
+      let bin = '';
+      sig.forEach(function (b) { bin += String.fromCharCode(b); });
+      return { username: username, credential: btoa(bin) };
+    }
+
+    async function buildIceConfig() {
+      const iceServers = [];
+      if (NET_CONFIG.useOpenRelay) {
+        iceServers.push({ urls: ['stun:stun.l.google.com:19302', 'stun:stun.relay.metered.ca:80'] });
+        try {
+          const c = await openRelayCredentials();
+          const h = OPEN_RELAY.host;
+          iceServers.push({
+            urls: ['turn:' + h + ':80', 'turn:' + h + ':80?transport=tcp', 'turn:' + h + ':443', 'turns:' + h + ':443?transport=tcp'],
+            username: c.username,
+            credential: c.credential
+          });
+        } catch (e) {}
+        iceServers.push(PEERJS_TURN);
+      }
+      NET_CONFIG.extraIce.forEach(function (s) { iceServers.push(s); });
+      const config = { iceServers: iceServers };
+      if (NET_CONFIG.forceRelay) config.iceTransportPolicy = 'relay';
+      return config;
+    }
 
     let currentSession = null;
     let coins = STARTING_COINS;
@@ -1577,6 +1628,9 @@
     let callTimer = null;
     let billingTimer = null;
     let ringTimeoutTimer = null;
+    let offerResendTimer = null;
+    // Calls this tab already answered, declined, missed or ended — re-sent offers for them are ignored.
+    const handledCallIds = {};
     let mediaTimeoutTimer = null;
     let elapsed = 0;
     let audioMuted = false;
@@ -1790,11 +1844,13 @@
       switch (msg.type) {
         case 'CALL_OFFER':
           if (!offerIsForMe(msg)) return;
+          if (handledCallIds[msg.callId]) return;
           // A stored (retained) offer older than the ring window is a stale call — ignore it
           if (isRetained && Date.now() - msg.ts > RING_TIMEOUT_MS + 15000) return;
           onIncomingOffer(msg);
           break;
         case 'CALL_CANCEL':
+          handledCallIds[msg.callId] = true;
           if (incoming && incoming.id === msg.callId) {
             incoming = null;
             hideIncomingCallUI();
@@ -1803,6 +1859,7 @@
           break;
         case 'CALL_TAKEN':
           // Caller confirms who won the call (matters for pools: random match / support desk)
+          if (msg.winnerTab !== TAB_INSTANCE_ID) handledCallIds[msg.callId] = true;
           if (incoming && incoming.id === msg.callId) {
             incoming = null;
             hideIncomingCallUI();
@@ -1832,11 +1889,12 @@
     }
 
     // --------------------------------------------------------- PeerJS media
-    function createPeer() {
+    async function createPeer() {
+      const iceConfig = await buildIceConfig();
       return new Promise(function (resolve, reject) {
         if (typeof Peer === 'undefined') return reject(new Error('PeerJS not loaded'));
         let settled = false;
-        const p = new Peer(NET_CONFIG.peerOptions);
+        const p = new Peer(Object.assign({}, NET_CONFIG.peerOptions, { config: iceConfig }));
         const t = setTimeout(function () {
           if (!settled) { settled = true; try { p.destroy(); } catch (e) {} reject(new Error('Peer server timeout')); }
         }, 10000);
@@ -1870,10 +1928,50 @@
         pc.addEventListener('iceconnectionstatechange', function () {
           if (!call) return;
           if (pc.iceConnectionState === 'disconnected') setCallSubText('Connection unstable — reconnecting…');
-          if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') setCallSubText(connectedSubText());
+          if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+            setCallSubText(connectedSubText());
+            reportConnectionRoute(pc);
+          }
           if (pc.iceConnectionState === 'failed') finishCall(true, 'Could not connect — the network blocked the call');
         });
       }
+    }
+
+    // Shows whether the call went direct or through the TURN relay (useful when a call fails on mobile data).
+    async function reportConnectionRoute(pc) {
+      try {
+        const stats = await pc.getStats();
+        let pair = null;
+        stats.forEach(function (r) {
+          if (r.type === 'transport' && r.selectedCandidatePairId) pair = stats.get(r.selectedCandidatePairId);
+        });
+        if (!pair) stats.forEach(function (r) { if (r.type === 'candidate-pair' && r.nominated && r.state === 'succeeded') pair = r; });
+        const local = pair && stats.get(pair.localCandidateId);
+        if (!call || !local) return;
+        call.route_type = local.candidateType === 'relay' ? 'relay' : 'direct';
+        $('callRouteText').textContent = call.route_type === 'relay' ? 'Connected via relay server' : 'Connected directly';
+      } catch (e) {}
+    }
+
+    // Mobile browsers only play sound that a tap started. Call this inside the tap
+    // (Call / Accept button) so the call's audio and video are allowed to play later.
+    function unlockMediaPlayback() {
+      ['remoteAudioPlayer', 'remoteVideo'].forEach(function (id) {
+        const el = $(id);
+        try { const pr = el.play(); if (pr && pr.catch) pr.catch(function () {}); } catch (e) {}
+      });
+    }
+
+    function playRemoteMedia() {
+      const els = [$('remoteAudioPlayer')];
+      if (call && call.video && $('remoteVideo').srcObject) els.push($('remoteVideo'));
+      let blocked = false;
+      return Promise.all(els.map(function (el) {
+        return el.play().catch(function () { blocked = true; });
+      })).then(function () {
+        $('enableSoundBtn').classList.toggle('hidden', !blocked);
+        return !blocked;
+      });
     }
 
     function onRemoteStream(stream) {
@@ -1886,16 +1984,11 @@
       const aud = $('remoteAudioPlayer');
       aud.srcObject = stream;
       aud.muted = false;
-      aud.play().catch(function () {
-        showToast('Tap anywhere to enable call audio');
-        document.addEventListener('click', function once() { aud.play().catch(function () {}); }, { once: true });
-      });
 
       if (call.video && stream.getVideoTracks().length > 0) {
         const vid = $('remoteVideo');
         vid.srcObject = stream;
         vid.muted = true; // sound comes from the audio element
-        vid.play().catch(function () {});
         if (call.remoteCameraOn !== false) {
           vid.classList.remove('hidden');
           $('audioAvatarStage').classList.add('hidden');
@@ -1903,6 +1996,9 @@
         $('remotePeerOverlayTag').textContent = '● Live: ' + call.peerLabel;
         $('remotePeerOverlayTag').classList.remove('hidden');
       }
+      playRemoteMedia().then(function (ok) {
+        if (!ok) showToast('Tap "Turn on sound" to hear the call');
+      });
       $('liveAudioWaveBadge').classList.remove('hidden');
       $('liveAudioStatusText').textContent = 'Two-way voice active';
       setCallSubText(connectedSubText());
@@ -1949,6 +2045,7 @@
       if (ratePerMin > 0 && coins < ratePerMin) return showToast('Insufficient Coins — you need at least ' + ratePerMin + ' coins. Please top up.');
 
       ensureAudioContext();
+      unlockMediaPlayback();
       const target = targetPhone ? { toPhone: targetPhone } : { toRole: targetRole };
       call = {
         id: newId('call_'),
@@ -1980,7 +2077,7 @@
         return;
       }
 
-      sendSignal({
+      const offer = {
         type: 'CALL_OFFER',
         callId: call.id,
         callType: callType,
@@ -1990,7 +2087,13 @@
         fromName: currentSession.name,
         fromRole: currentSession.role,
         ratePerMin: call.ratePerMin
-      }, { route: call.route }, true);
+      };
+      sendSignal(offer, { route: call.route }, true);
+      // Keep ringing: a phone whose connection blinked (screen lock, app switch) still gets the call.
+      offerResendTimer = setInterval(function () {
+        if (call !== myCall || call.answered) { clearInterval(offerResendTimer); offerResendTimer = null; return; }
+        sendSignal(offer, { route: myCall.route }, false);
+      }, OFFER_RESEND_MS);
 
       setCallSubText(call.toPhone
         ? 'Ringing ' + peerName + '…'
@@ -2009,6 +2112,7 @@
       if (call.answered) return; // pool: someone else already won
       call.answered = true;
       clearTimeout(ringTimeoutTimer);
+      clearInterval(offerResendTimer); offerResendTimer = null;
       stopRingingSound();
       clearRetainedRing(call.route);
       sendSignal({ type: 'CALL_TAKEN', callId: call.id, winnerTab: msg.fromTab }, { route: call.route });
@@ -2093,7 +2197,9 @@
     async function acceptIncomingCall() {
       if (!incoming || call) return;
       ensureAudioContext();
+      unlockMediaPlayback();
       const inc = incoming;
+      handledCallIds[inc.id] = true;
       incoming = null;
       hideIncomingCallUI();
 
@@ -2150,6 +2256,7 @@
       if (!incoming) return;
       const id = incoming.id;
       incoming = null;
+      handledCallIds[id] = true;
       hideIncomingCallUI();
       sendSignal({ type: 'CALL_DECLINE', callId: id, reason: 'declined' }, { callId: id });
       showToast('Call rejected');
@@ -2293,6 +2400,8 @@
 
       clearTimeout(ringTimeoutTimer);
       clearTimeout(mediaTimeoutTimer);
+      clearInterval(offerResendTimer); offerResendTimer = null;
+      handledCallIds[ended.id] = true;
       clearInterval(callTimer); callTimer = null;
       clearInterval(billingTimer); billingTimer = null;
       stopRingingSound();
@@ -2304,6 +2413,8 @@
       $('remoteVideo').srcObject = null;
       $('remoteVideo').classList.add('hidden');
       $('remoteAudioPlayer').srcObject = null;
+      $('enableSoundBtn').classList.add('hidden');
+      $('callRouteText').textContent = '';
       $('remotePeerOverlayTag').classList.add('hidden');
       $('liveAudioWaveBadge').classList.add('hidden');
       const dlg = $('webrtcCallDialog');
@@ -2323,6 +2434,14 @@
     }
     function openTargetReceiverFromCall() {
       if (call && call.toPhone) openReceiverTab(call.toPhone);
+    }
+
+    // Current URL without one-time parameters (keeps settings such as ?relay=1).
+    function cleanUrl() {
+      const p = new URLSearchParams(window.location.search);
+      p.delete('loginPhone'); p.delete('receiverPhone');
+      const q = p.toString();
+      return window.location.pathname + (q ? '?' + q : '');
     }
 
     // ------------------------------------------------------------- session
@@ -2382,7 +2501,7 @@
         loggedInAt: Date.now()
       };
       setSessionCookieAndStorage(sessionObj);
-      history.pushState({ authenticated: true }, '', window.location.pathname);
+      history.pushState({ authenticated: true }, '', cleanUrl());
       renderAuthenticatedSession(sessionObj);
       showToast('Signed in as ' + sessionObj.name + ' (' + sessionObj.roleLabel + ')');
     }
@@ -2414,7 +2533,7 @@
       currentSession = null;
       clearSessionCookieAndStorage();
       refreshSubscriptions();
-      history.replaceState({ authenticated: false }, '', window.location.pathname);
+      history.replaceState({ authenticated: false }, '', cleanUrl());
       $('mainAppContainer').classList.add('hidden');
       $('otpLoginScreen').classList.remove('hidden');
       $('loginPhoneInput').value = '';
@@ -2425,11 +2544,23 @@
     window.addEventListener('popstate', function () {
       const existing = getActiveSession();
       if (existing) {
-        history.pushState({ authenticated: true }, '', window.location.pathname);
+        history.pushState({ authenticated: true }, '', cleanUrl());
         renderAuthenticatedSession(existing);
         showToast('Session is locked. Use "Sign Out" to switch accounts.');
       }
     });
+
+    // Phones pause background tabs and drop their connection. When the tab is shown again,
+    // reconnect and re-subscribe so any call that is still ringing pops up.
+    function resyncSignal() {
+      if (!mqttClient || !currentSession) return;
+      if (!mqttClient.connected) { try { mqttClient.reconnect(); } catch (e) {} return; }
+      const ringTopics = subscribedTopics.filter(function (t) { return t.indexOf('/ring/') !== -1; });
+      if (ringTopics.length) { try { mqttClient.subscribe(ringTopics, { qos: 1 }); } catch (e) {} }
+    }
+    document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') resyncSignal(); });
+    window.addEventListener('online', resyncSignal);
+    window.addEventListener('pageshow', resyncSignal);
 
     window.addEventListener('pagehide', function () {
       if (call) finishCall(true, '');
@@ -2439,6 +2570,7 @@
     // Drop an incoming popup if the caller vanished without cancelling
     setInterval(function () {
       if (incoming && Date.now() - incoming.receivedAt > RING_TIMEOUT_MS) {
+        handledCallIds[incoming.id] = true;
         incoming = null;
         hideIncomingCallUI();
         showToast('Missed call');
@@ -2470,8 +2602,8 @@
 
       const existing = getActiveSession();
       if (existing) {
-        history.replaceState({ authenticated: true }, '', window.location.pathname);
-        history.pushState({ authenticated: true }, '', window.location.pathname);
+        history.replaceState({ authenticated: true }, '', cleanUrl());
+        history.pushState({ authenticated: true }, '', cleanUrl());
         renderAuthenticatedSession(existing);
       } else {
         $('otpLoginScreen').classList.remove('hidden');

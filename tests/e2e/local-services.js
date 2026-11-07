@@ -11,6 +11,7 @@ const path = require('node:path');
 const { Aedes } = require('aedes');
 const { WebSocketServer, createWebSocketStream } = require('ws');
 const { PeerServer } = require('peer');
+const Turn = require('node-turn');
 
 const DOCS_DIR = path.resolve(__dirname, '..', '..', 'docs');
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml' };
@@ -44,19 +45,31 @@ function startPeerServer(port) {
   });
 }
 
-async function startServices({ webPort = 5050, mqttPort = 8888, peerPort = 9000 } = {}) {
+// Local TURN relay, used to prove calls work when a direct connection is impossible
+// (what happens between mobile data and Wi-Fi). Pages opened with relayUrl are forced
+// to send all media through it (?relay=1).
+function startTurnServer(port) {
+  const turn = new Turn({ authMech: 'long-term', credentials: { fc: 'fcpass' }, listeningPort: port, listeningIps: ['127.0.0.1'], relayIps: ['127.0.0.1'], debugLevel: 'OFF' });
+  turn.start();
+  return turn;
+}
+
+async function startServices({ webPort = 5050, mqttPort = 8888, peerPort = 9000, turnPort = 3478 } = {}) {
   const web = await startStaticServer(webPort);
   const mqtt = await startMqttOverWs(mqttPort);
   const peer = await startPeerServer(peerPort);
+  const turn = startTurnServer(turnPort);
   const demoUrl = `http://localhost:${webPort}/?mqtt=ws://localhost:${mqttPort}&peerHost=localhost&peerPort=${peerPort}&peerPath=/`;
+  const relayUrl = `${demoUrl}&relay=1&turnUrl=${encodeURIComponent(`turn:127.0.0.1:${turnPort}`)}&turnUser=fc&turnPass=fcpass`;
   async function stop() {
+    try { turn.stop(); } catch (e) {}
     await new Promise((r) => web.close(() => r()));
     mqtt.wss.clients.forEach((c) => c.terminate());
     await new Promise((r) => mqtt.server.close(() => r()));
     await new Promise((r) => mqtt.broker.close(() => r()));
     try { peer.close ? peer.close() : peer._server && peer._server.close(); } catch (e) {}
   }
-  return { demoUrl, stop };
+  return { demoUrl, relayUrl, stop };
 }
 
 module.exports = { startServices };

@@ -8,6 +8,7 @@
   "devDependencies": {
     "aedes": "1.2.0",
     "mqtt": "5.10.1",
+    "node-turn": "^0.0.6",
     "peer": "1.0.2",
     "peerjs": "1.5.4",
     "ws": "8.22.1"

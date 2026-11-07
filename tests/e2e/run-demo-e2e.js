@@ -31,7 +31,7 @@ function check(name, ok, detail) {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  — ' + detail : ''}`);
 }
 
-async function newDevice(browser, demoUrl, label) {
+async function newDevice(browser, demoUrl, label) { // eslint-disable-line no-unused-vars
   const context = await browser.newContext({ permissions: ['camera', 'microphone'] });
   await context.route('https://unpkg.com/**', (route) => {
     const file = VENDOR[route.request().url()];
@@ -218,6 +218,52 @@ async function main() {
     await arjun.reload();
     await arjun.waitForTimeout(800);
     check('Refresh after Sign Out stays on the login screen', await arjun.evaluate(() => document.getElementById('mainAppContainer').classList.contains('hidden')));
+
+    // 8) Mobile-network conditions: no direct path, everything through a TURN relay
+    const r1 = await newDevice(browser, services.relayUrl, 'Relay-Meera');
+    const r2 = await newDevice(browser, services.relayUrl, 'Relay-Ananya');
+    pages.push(r1, r2);
+    await login(r1, ACCOUNTS.meera);
+    await login(r2, ACCOUNTS.ananya);
+    await placeCall(r1, `button[onclick*="'CELEB_VIDEO', 'Ananya"]`);
+    await dialogOpen(r2, 'incomingCallDialog');
+    await r2.click('#incomingCallDialog button.btn-accept');
+    await waitConnected(r1); await waitConnected(r2);
+    await r1.waitForTimeout(3000);
+    const v1 = await mediaStats(r1), v2 = await mediaStats(r2);
+    check('Relay-only video call: audio + video flow both ways through TURN', v1 && v2 && v1.audioIn > 0 && v1.framesDecoded > 0 && v2.audioIn > 0 && v2.framesDecoded > 0, JSON.stringify({ v1, v2 }));
+    await r1.waitForFunction(() => document.getElementById('callRouteText').textContent.length > 0, null, { timeout: 5000 }).catch(() => {});
+    check('Call screen shows the call went through the relay', /relay/i.test(await r1.textContent('#callRouteText')), await r1.textContent('#callRouteText'));
+    check('Sound plays without needing an extra tap', await r1.evaluate(() => document.getElementById('enableSoundBtn').classList.contains('hidden') && !document.getElementById('remoteAudioPlayer').paused));
+    await endFrom(r1);
+    await dialogClosed(r2, 'webrtcCallDialog');
+
+    // 9) Receiver who was offline when the call started (phone screen off) still gets it
+    await login(arjun, ACCOUNTS.arjun);
+    await support.close();
+    pages.splice(pages.indexOf(support), 1);
+    const late = await newDevice(browser, services.demoUrl, 'Late-Support');
+    pages.push(late);
+    await placeCall(arjun, `button[onclick^="startWebRtcCall('SUPPORT_AUDIO', 'Customer Care'"]`);
+    await arjun.waitForTimeout(1500);
+    await login(late, ACCOUNTS.support);
+    await dialogOpen(late, 'incomingCallDialog', 12000);
+    check('A support agent who comes online while the call is ringing still gets the popup', true);
+    await late.click('#incomingCallDialog button.btn-accept');
+    await waitConnected(arjun); await waitConnected(late);
+    await arjun.waitForTimeout(2000);
+    const l1 = await mediaStats(arjun), l2 = await mediaStats(late);
+    check('…and that support call has two-way audio', l1.audioIn > 0 && l2.audioIn > 0, JSON.stringify({ l1, l2 }));
+    await endFrom(arjun);
+    await dialogClosed(late, 'webrtcCallDialog');
+
+    // 10) Re-sent offers never bring back a call that was rejected
+    await placeCall(arjun, `button[onclick*="'CELEB_AUDIO', 'Dulquer"]`);
+    await dialogOpen(dulquer, 'incomingCallDialog');
+    await dulquer.click('#incomingCallDialog button.btn-reject');
+    await dialogClosed(arjun, 'webrtcCallDialog');
+    await dulquer.waitForTimeout(4000);
+    check('A rejected call does not ring again', !(await dulquer.evaluate(() => document.getElementById('incomingCallDialog').open)));
 
     for (const p of pages) check(`No JavaScript errors on ${p.label}'s page`, p.errors.length === 0, p.errors.join(' | '));
   } catch (err) {

@@ -12,6 +12,8 @@
 
 ## The demo — `docs/index.html`
 - One self-contained file with no build step. Libraries come from unpkg: `peerjs@1.5.4`, `mqtt@5.10.1`. Edit only `docs/index.html`; the duplicate root `index.html` was removed on 2026-11-07.
+- **Calls across networks need TURN.** `buildIceConfig()` adds Metered Open Relay (static-auth: HMAC credentials from its public secret, ports 80/443 UDP/TCP/TLS) + PeerJS TURN. `?relay=1` forces relay-only (use it to test what mobile-data users get). The call screen shows "Connected directly / via relay server".
+- Ringing offers are re-sent every 3 s and retained, so a phone whose tab was asleep still rings; `handledCallIds` stops finished/declined calls from ringing again.
 - **Media goes only over PeerJS (WebRTC).** MQTT (`wss://broker.emqx.io`) carries only small call-control messages; `BroadcastChannel` covers tabs in the same browser.
 - `MQTT_TOPIC_PREFIX` / `SIGNAL_CHANNEL_NAME` are versioned (`…_v7`). If you change the message protocol, bump both so old open tabs don't interfere.
 - Accounts live in `ACCOUNT_DIRECTORY` (7 demo numbers); the OTP is `123456`.
@@ -21,7 +23,7 @@
 
 ## Test before pushing demo changes
 ```bash
-cd tests/e2e && npm install && npm test   # must stay green (30 checks on 2026-11-07)
+cd tests/e2e && npm install && npm test   # must stay green (38 checks on 2026-11-07, incl. a relay-only call through a local TURN server)
 ```
 - This starts a local MQTT broker, a PeerJS server and fake-media Chromium browsers; the demo reads `?mqtt=&peerHost=` overrides on localhost.
 - In Claude's cloud workspace Playwright and Chromium are preinstalled globally. Do **not** reinstall Playwright.
