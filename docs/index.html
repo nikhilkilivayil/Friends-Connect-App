@@ -980,7 +980,7 @@
               <p class="sub">Calls ring live on the celebrity's own account. Billed per started minute from your coin wallet.</p>
             </div>
             <button type="button" class="btn btn-subtle" onclick="openReceiverTab('+919999900001')">
-              ↗ Open Dulquer's side in a new tab (same-laptop demo)
+              ↗ New tab: log in as Dulquer (OTP 123456)
             </button>
           </div>
 
@@ -1405,7 +1405,7 @@
         🔔 Ringing <code id="targetReceiverCode"></code>
       </div>
       <p class="sub" style="font-size:0.8125rem;margin-bottom:0.75rem;color:var(--text-primary);">
-        Demoing on one laptop? Open the receiver's side in a new tab and accept the call there.
+        Demoing on one laptop? Open a new tab, log in as the receiver (OTP 123456) and accept the call there.
       </p>
       <button type="button" class="btn btn-accept" style="width:100%;font-size:0.82rem;min-height:42px;" onclick="openTargetReceiverFromCall()">
         ↗ Open receiver in a new tab
@@ -2243,47 +2243,47 @@
 
     function endWebRtcCall() { finishCall(true, 'Call ended'); }
 
+    // Opens a fresh tab on the login screen with the number pre-filled.
+    // The new tab has its own session, so you still verify the OTP there.
     function openReceiverTab(targetPhone) {
-      const url = window.location.origin + window.location.pathname + '?receiverPhone=' + encodeURIComponent(targetPhone);
-      window.open(url, '_blank');
+      const url = window.location.origin + window.location.pathname + '?loginPhone=' + encodeURIComponent(targetPhone);
+      window.open(url, '_blank', 'noopener');
     }
     function openTargetReceiverFromCall() {
       if (call && call.toPhone) openReceiverTab(call.toPhone);
     }
 
     // ------------------------------------------------------------- session
+    // One login per browser tab (sessionStorage):
+    //  - refresh / Back keep you signed in; Sign Out ends it
+    //  - a new tab or a new visit starts at the OTP login screen
+    //  - different tabs can be signed in as different users
+    // Older versions also kept the login in a 7-day cookie + localStorage,
+    // which signed people in automatically; those are wiped on load.
+    function clearLegacyPersistentSession() {
+      document.cookie = SESSION_COOKIE_KEY + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax';
+      try { localStorage.removeItem(SESSION_STORAGE_KEY); } catch (e) {}
+    }
+
     function setSessionCookieAndStorage(sessionObj) {
-      const encoded = encodeURIComponent(JSON.stringify(sessionObj));
-      const expires = new Date(Date.now() + 7 * 86400 * 1000).toUTCString();
-      document.cookie = SESSION_COOKIE_KEY + '=' + encoded + '; expires=' + expires + '; path=/; SameSite=Lax';
-      try {
-        sessionStorage.setItem(TAB_SESSION_KEY, JSON.stringify(sessionObj));
-        localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionObj));
-      } catch (e) {}
+      try { sessionStorage.setItem(TAB_SESSION_KEY, JSON.stringify(sessionObj)); } catch (e) {}
     }
 
     function getActiveSession() {
       try {
         const tabRaw = sessionStorage.getItem(TAB_SESSION_KEY);
-        if (tabRaw) return JSON.parse(tabRaw);
-      } catch (e) {}
-      const match = document.cookie.split('; ').find(function (row) { return row.startsWith(SESSION_COOKIE_KEY + '='); });
-      if (match) {
-        try { return JSON.parse(decodeURIComponent(match.split('=')[1])); } catch (e) {}
-      }
-      try {
-        const raw = localStorage.getItem(SESSION_STORAGE_KEY);
-        if (raw) return JSON.parse(raw);
+        if (tabRaw) {
+          const s = JSON.parse(tabRaw);
+          if (s && s.phone && ACCOUNT_DIRECTORY[s.phone] && ACCOUNT_DIRECTORY[s.phone].role !== s.role) return null;
+          return s;
+        }
       } catch (e) {}
       return null;
     }
 
     function clearSessionCookieAndStorage() {
-      document.cookie = SESSION_COOKIE_KEY + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax';
-      try {
-        sessionStorage.removeItem(TAB_SESSION_KEY);
-        localStorage.removeItem(SESSION_STORAGE_KEY);
-      } catch (e) {}
+      try { sessionStorage.removeItem(TAB_SESSION_KEY); } catch (e) {}
+      clearLegacyPersistentSession();
     }
 
     function fillDemoPhone(phone) {
@@ -2341,8 +2341,11 @@
       currentSession = null;
       clearSessionCookieAndStorage();
       refreshSubscriptions();
+      history.replaceState({ authenticated: false }, '', window.location.pathname);
       $('mainAppContainer').classList.add('hidden');
       $('otpLoginScreen').classList.remove('hidden');
+      $('loginPhoneInput').value = '';
+      $('loginOtpInput').value = '';
       showToast('Signed out.');
     }
 
@@ -2386,17 +2389,11 @@
 
       loadModerationState();
 
+      clearLegacyPersistentSession();
+      // ?loginPhone= only pre-fills the number; the OTP is still required.
       const params = new URLSearchParams(window.location.search);
-      const receiverPhoneParam = params.get('receiverPhone');
-      if (receiverPhoneParam && ACCOUNT_DIRECTORY[receiverPhoneParam]) {
-        // Opened from "Open receiver in new tab": sign this tab in as the receiver only
-        const account = ACCOUNT_DIRECTORY[receiverPhoneParam];
-        const s = { phone: receiverPhoneParam, role: account.role, name: account.name, roleLabel: account.roleLabel, showWallet: account.showWallet, loggedInAt: Date.now() };
-        try { sessionStorage.setItem(TAB_SESSION_KEY, JSON.stringify(s)); } catch (e) {}
-        history.replaceState({ authenticated: true }, '', window.location.pathname);
-        renderAuthenticatedSession(s);
-        return;
-      }
+      const loginPhoneParam = params.get('loginPhone');
+      if (loginPhoneParam && /^\+?\d{10,13}$/.test(loginPhoneParam)) $('loginPhoneInput').value = loginPhoneParam;
 
       const existing = getActiveSession();
       if (existing) {

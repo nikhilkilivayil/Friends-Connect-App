@@ -181,7 +181,30 @@ async function main() {
     await endFrom(support);
     await dialogClosed(arjun, 'webrtcCallDialog');
 
-    // 6) Session lock: Back button keeps you signed in; Sign Out returns to login
+    // 6) Sessions: one login per tab, nothing signs you in automatically
+    await arjun.reload();
+    await arjun.waitForSelector('#mainAppContainer:not(.hidden)');
+    check('Refreshing the page keeps you signed in', true);
+    const freshTab = await arjun.context().newPage();
+    await freshTab.goto(services.demoUrl);
+    await freshTab.waitForTimeout(800);
+    check('A new tab starts at the OTP login screen (no auto login)', await freshTab.evaluate(() => !document.getElementById('otpLoginScreen').classList.contains('hidden') && document.getElementById('mainAppContainer').classList.contains('hidden')));
+    await login(freshTab, ACCOUNTS.ananya);
+    check('Two tabs in the same browser can be different users', (await freshTab.textContent('#lockedUserName')).includes('Ananya') && (await arjun.textContent('#lockedUserName')).includes('Arjun'));
+    await freshTab.close();
+    const bypass = await arjun.context().newPage();
+    await bypass.evaluate(() => 0);
+    await bypass.goto(services.demoUrl + '&receiverPhone=%2B919999900001&loginPhone=%2B919999900001');
+    await bypass.waitForTimeout(800);
+    const bypassState = await bypass.evaluate(() => ({ loggedOut: document.getElementById('mainAppContainer').classList.contains('hidden'), prefill: document.getElementById('loginPhoneInput').value }));
+    check('A link cannot sign you in without the OTP (number is only pre-filled)', bypassState.loggedOut && bypassState.prefill === '+919999900001', JSON.stringify(bypassState));
+    await bypass.evaluate(() => localStorage.setItem('fc_auth_session_v1', JSON.stringify({ phone: '+919000000001', role: 'SUPER_ADMIN', name: 'x', roleLabel: 'x' })));
+    await bypass.reload();
+    await bypass.waitForTimeout(800);
+    check('Old saved logins from earlier versions are ignored', await bypass.evaluate(() => document.getElementById('mainAppContainer').classList.contains('hidden') && localStorage.getItem('fc_auth_session_v1') === null));
+    await bypass.close();
+
+    // 7) Session lock: Back button keeps you signed in; Sign Out returns to login
     await arjun.goBack().catch(() => {});
     await arjun.waitForTimeout(500);
     const stillIn = await arjun.evaluate(() => !document.getElementById('mainAppContainer').classList.contains('hidden'));
@@ -189,6 +212,12 @@ async function main() {
     await arjun.click('#signOutBtn');
     const loggedOut = await arjun.evaluate(() => !document.getElementById('otpLoginScreen').classList.contains('hidden'));
     check('Sign Out returns to the OTP login screen', loggedOut);
+    await arjun.goBack().catch(() => {});
+    await arjun.waitForTimeout(500);
+    check('Back after Sign Out does not get you back in', await arjun.evaluate(() => document.getElementById('mainAppContainer').classList.contains('hidden')));
+    await arjun.reload();
+    await arjun.waitForTimeout(800);
+    check('Refresh after Sign Out stays on the login screen', await arjun.evaluate(() => document.getElementById('mainAppContainer').classList.contains('hidden')));
 
     for (const p of pages) check(`No JavaScript errors on ${p.label}'s page`, p.errors.length === 0, p.errors.join(' | '));
   } catch (err) {

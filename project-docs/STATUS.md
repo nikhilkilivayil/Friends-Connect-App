@@ -18,7 +18,7 @@ Legend: ✅ done · 🟡 partial / demo-only · ❌ missing
 | # | Requirement | Live demo (`docs/`) | `backend/` | `web/` (Next.js) | `android/` | `ios/` |
 |---|---|---|---|---|---|---|
 | 1 | Mobile number + OTP login | 🟡 dummy OTP `123456`, 7 demo numbers; unknown numbers become normal users | 🟡 OTP always `123456`; caller can pick any role | 🟡 mock | ❌ role tabs | ❌ role picker |
-| 2 | One account per session, no switching, Back keeps you in | ✅ (see risk R8) | ❌ no real sessions/JWT | ❌ role switcher | ❌ | ❌ |
+| 2 | One account per session, no switching, Back keeps you in | ✅ one login per tab; new visits start at login (fixed 7 Nov) | ❌ no real sessions/JWT | ❌ role switcher | ❌ | ❌ |
 | 3 | Random friend connect — audio | 🟡 rings every online normal user, first to accept wins (not a waiting queue, see R6) | 🟡 Socket.io queue, unused by any client | ❌ fake | ❌ | ❌ |
 | 4 | Random friend connect — video | 🟡 same as above | 🟡 | ❌ | ❌ | ❌ |
 | 5 | Call celebrities (audio + video), premium only | ✅ coins per started minute; call ends when coins run out | 🟡 client must call `/tick` every minute | 🟡 mock | ❌ | ❌ |
@@ -100,7 +100,7 @@ Minor UX note: when the other side hangs up, the receiver sometimes sees "Connec
 - The celebrity earns 100% (the plan said an 80/20 split).
 - Rates are hard-coded in the buttons.
 
-**R8 — Login bypass.** "Open receiver in a new tab" (`?receiverPhone=`) signs a tab in as the celebrity without OTP. That is handy for one-laptop demos but breaks the "only the logged-in user" rule on the public site.
+**R8 — Login bypass. Fixed 7 Nov.** `?receiverPhone=` used to sign a tab in without OTP, and a 7-day cookie signed people in automatically on every visit. Now each tab has its own login (sessionStorage), old saved logins are wiped, and the new-tab helper only pre-fills the number.
 
 **R9 — Public signalling.**
 - Call signalling uses the public broker `broker.emqx.io` on a guessable topic, so anyone can see who calls whom (demo accounts only).
