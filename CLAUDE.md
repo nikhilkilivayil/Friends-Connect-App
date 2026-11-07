@@ -12,7 +12,7 @@
 
 ## The demo — `docs/index.html`
 - One self-contained file with no build step. Libraries come from unpkg: `peerjs@1.5.4`, `mqtt@5.10.1`. Edit only `docs/index.html`; the duplicate root `index.html` was removed on 2026-11-07.
-- **Calls across networks need TURN.** `buildIceConfig()` adds Metered Open Relay (static-auth: HMAC credentials from its public secret, ports 80/443 UDP/TCP/TLS) + PeerJS TURN. `?relay=1` forces relay-only (use it to test what mobile-data users get). The call screen shows "Connected directly / via relay server".
+- **Calls across networks need TURN.** `buildIceConfig()` uses Google STUN + `TURN_ACCOUNT` (empty until Nikhil creates a free ExpressTURN/Metered account) + PeerJS TURN. Tested from his Mac on 7 Nov 2026: Metered Open Relay (static-auth and legacy) and PeerJS TURN give no relay candidates, so don't rely on them. `?relay=1` forces relay-only; the call screen shows "Connected directly / via relay server".
 - Ringing offers are re-sent every 3 s and retained, so a phone whose tab was asleep still rings; `handledCallIds` stops finished/declined calls from ringing again.
 - **Media goes only over PeerJS (WebRTC).** MQTT (`wss://broker.emqx.io`) carries only small call-control messages; `BroadcastChannel` covers tabs in the same browser.
 - `MQTT_TOPIC_PREFIX` / `SIGNAL_CHANNEL_NAME` are versioned (`…_v7`). If you change the message protocol, bump both so old open tabs don't interfere.

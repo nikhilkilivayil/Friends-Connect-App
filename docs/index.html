@@ -1541,16 +1541,17 @@
     // parameters (?mqtt=ws://...&peerHost=...&peerPort=...&peerPath=...) for local testing.
     //
     // Calls between different networks (mobile data <-> Wi-Fi, office firewalls) need a
-    // TURN relay. We use Metered's free "Open Relay" (static-auth: short-lived credentials
-    // are derived from its public shared secret, so no sign-up is needed), on ports 80 and
-    // 443 over UDP, TCP and TLS, plus PeerJS's own TURN as a fallback.
-    // ?relay=1 forces every call through TURN (handy for testing what mobile users get).
+    // TURN relay. TURN_ACCOUNT holds the relay login (e.g. a free ExpressTURN or Metered
+    // account). Checked on 7 Nov 2026: the no-sign-up relays (Metered Open Relay, PeerJS's
+    // TURN) no longer work, so until TURN_ACCOUNT is filled in, calls only connect when a
+    // direct path exists (same Wi-Fi, most home broadband).
+    // ?relay=1 forces every call through TURN (to test what mobile-data users get).
     const NET_CONFIG = (function () {
       const p = new URLSearchParams(window.location.search);
       const cfg = {
         mqttUrl: 'wss://broker.emqx.io:8084/mqtt',
         peerOptions: { debug: 0 },
-        useOpenRelay: true,
+        usePublicIce: true,
         extraIce: [],
         forceRelay: p.get('relay') === '1'
       };
@@ -1565,40 +1566,21 @@
             path: p.get('peerPath') || '/',
             secure: p.get('peerSecure') === '1'
           };
-          cfg.useOpenRelay = false; // offline test rig
+          cfg.usePublicIce = false; // offline test rig
         }
         if (p.get('turnUrl')) cfg.extraIce.push({ urls: p.get('turnUrl'), username: p.get('turnUser') || '', credential: p.get('turnPass') || '' });
       }
       return cfg;
     })();
 
-    const OPEN_RELAY = { host: 'staticauth.openrelay.metered.ca', secret: 'openrelayprojectsecret' };
+    const TURN_ACCOUNT = null; // { urls: ['turn:host:3478?transport=udp', 'turn:host:3478?transport=tcp', 'turns:host:443?transport=tcp'], username: '…', credential: '…' }
     const PEERJS_TURN = { urls: ['turn:eu-0.turn.peerjs.com:3478', 'turn:us-0.turn.peerjs.com:3478'], username: 'peerjs', credential: 'peerjsp' };
-
-    // coturn "use-auth-secret" credentials: username = expiry:id, password = base64(HMAC-SHA1(secret, username))
-    async function openRelayCredentials() {
-      const username = Math.floor(Date.now() / 1000 + 6 * 3600) + ':fc' + Math.random().toString(36).slice(2, 8);
-      const enc = new TextEncoder();
-      const key = await crypto.subtle.importKey('raw', enc.encode(OPEN_RELAY.secret), { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']);
-      const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, enc.encode(username)));
-      let bin = '';
-      sig.forEach(function (b) { bin += String.fromCharCode(b); });
-      return { username: username, credential: btoa(bin) };
-    }
 
     async function buildIceConfig() {
       const iceServers = [];
-      if (NET_CONFIG.useOpenRelay) {
-        iceServers.push({ urls: ['stun:stun.l.google.com:19302', 'stun:stun.relay.metered.ca:80'] });
-        try {
-          const c = await openRelayCredentials();
-          const h = OPEN_RELAY.host;
-          iceServers.push({
-            urls: ['turn:' + h + ':80', 'turn:' + h + ':80?transport=tcp', 'turn:' + h + ':443', 'turns:' + h + ':443?transport=tcp'],
-            username: c.username,
-            credential: c.credential
-          });
-        } catch (e) {}
+      if (NET_CONFIG.usePublicIce) {
+        iceServers.push({ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] });
+        if (TURN_ACCOUNT) iceServers.push(TURN_ACCOUNT);
         iceServers.push(PEERJS_TURN);
       }
       NET_CONFIG.extraIce.forEach(function (s) { iceServers.push(s); });

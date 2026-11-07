@@ -116,6 +116,12 @@ Minor UX note: when the other side hangs up, the receiver sometimes sees "Connec
 - They don't call the backend and can't be built yet (see Build health).
 - They are a long way from the plan's ConnectionService/CallKit/PushKit design.
 
+**R12 — No working TURN relay (found 7 Nov).**
+- Calls between different networks, e.g. a phone on mobile data and a laptop on Wi-Fi, need a TURN relay.
+- Tested from Nikhil's Mac: the free no-sign-up relays (Metered Open Relay, PeerJS TURN) return nothing.
+- Fix: create a free ExpressTURN (1 TB/month) or Metered (20 GB/month) account and put its login in `TURN_ACCOUNT` in `docs/index.html`.
+- Already fixed the same day: sound is unlocked on the Call/Accept tap, ringing offers are re-sent, and the page reconnects when a phone tab wakes up.
+
 ## Development environment (set up 2026-11-07)
 
 **Where the code lives**
